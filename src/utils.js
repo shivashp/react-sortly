@@ -1,4 +1,4 @@
-import update from 'immutability-helper';
+import update from "immutability-helper";
 
 /**
  * Convert the raw item list to the Sortly item list
@@ -8,28 +8,31 @@ import update from 'immutability-helper';
  * @return {Array}
  */
 export function convert(
-  items: Array<{ id: number|string, parentId: number|string, index: number }>,
-  parentId: number|string,
-  path: Array<number|string> = [],
-): Array<{ id: number|string, path: Array<number|string> }> {
+  items: Array<{
+    id: number | string,
+    parentId: number | string,
+    index: number
+  }>,
+  parentId: number | string,
+  path: Array<number | string> = []
+): Array<{ id: number | string, path: Array<number | string> }> {
   const result = items
-    .filter((item) => {
+    .filter(item => {
       if (parentId === undefined) {
         return !item.parentId;
       }
       return item.parentId === parentId;
     })
     .sort((a, b) => a.index - b.index)
-    .map((item) => {
+    .map(item => {
       const { index, parentId: parent, ...data } = item;
       return { ...data, path: [...path] };
     });
 
-  [...result].forEach((item) => {
+  [...result].forEach(item => {
     const children = convert(items, item.id, [...path, item.id]);
     result.splice(result.indexOf(item) + 1, 0, ...children);
   });
-
 
   return result;
 }
@@ -40,16 +43,15 @@ export function convert(
  * @return {Array}
  */
 export function buildTree(
-  items: Array<{ id: number|string,
-  path: Array<number|string> }>,
-): Array<{ id: number|string, children: Array<{ id: number|string }> }> {
-  const buildItem = (item) => {
+  items: Array<{ id: number | string, path: Array<number | string> }>
+): Array<{ id: number | string, children: Array<{ id: number | string }> }> {
+  const buildItem = item => {
     const { path, ...data } = item;
     return {
       ...data,
       children: items
         .filter(child => child.path[child.path.length - 1] === item.id)
-        .map(child => buildItem(child)),
+        .map(child => buildItem(child))
     };
   };
   const tree = items
@@ -68,21 +70,23 @@ export function buildTree(
  * @return {Array}
  */
 export function flatten(
-  items: Array<{ path: Array<number|string> }>,
-  parentIdPropName: string = 'parentId',
-  indexPropName: string = 'index',
+  items: Array<{ path: Array<number | string> }>,
+  parentIdPropName: string = "parentId",
+  indexPropName: string = "index"
 ): Array {
   const indexSeq = {};
-  return items.map((item) => {
+  return items.map(item => {
     const { path, ...data } = item;
-    const pathAsString = path.join('.');
+    const pathAsString = path.join(".");
     if (indexSeq[pathAsString] === undefined) {
       indexSeq[pathAsString] = 0;
     } else {
       indexSeq[pathAsString] += 1;
     }
     return {
-      ...data, [parentIdPropName]: [...path].pop() || 0, [indexPropName]: indexSeq[pathAsString],
+      ...data,
+      [parentIdPropName]: [...path].pop() || 0,
+      [indexPropName]: indexSeq[pathAsString]
     };
   });
 }
@@ -93,9 +97,31 @@ export function flatten(
  * @param {Number} index The item position
  * @return {Array.<{path: Array.<number|string>}>}
  */
-export function findDescendants(items: Array<{ path: Array<number|string> }>, index: number): Array {
+export function findDescendants(
+  items: Array<{ path: Array<number | string> }>,
+  index: number
+): Array {
   const { id } = items[index];
   return items.filter(({ path }) => path.indexOf(id) !== -1);
+}
+
+/**
+ *
+ * @param {Array} items The item list
+ * @param {Number} level The level of the items to check
+ * @return {Boolean}
+ */
+export function findLevelLength(
+  items: Array<{ path: Array<number | string> }>,
+  level: number
+) {
+  return items.reduce((acc, path) => {
+    if (path.length === 0) {
+      // eslint-disable-next-line no-param-reassign
+      acc += 1;
+    }
+    return acc;
+  }, 0);
 }
 
 /**
@@ -104,7 +130,10 @@ export function findDescendants(items: Array<{ path: Array<number|string> }>, in
  * @param {Number} itemIndex The position of the item to increase
  * @return {null|Object}
  */
-export function increaseTreeItem(items: Array<{ path: Array<number|string> }>, itemIndex: number): Object|null {
+export function increaseTreeItem(
+  items: Array<{ path: Array<number | string> }>,
+  itemIndex: number
+): Object | null {
   const updateFn = {};
   const item = items[itemIndex];
   const { id } = item;
@@ -115,8 +144,9 @@ export function increaseTreeItem(items: Array<{ path: Array<number|string> }>, i
   }
 
   // Can't increase if it have next siblings
-  const nextSiblingItem = items.find((siblingItem, index) =>
-    index > itemIndex && siblingItem.path.join('.') === item.path.join('.'),
+  const nextSiblingItem = items.find(
+    (siblingItem, index) =>
+      index > itemIndex && siblingItem.path.join(".") === item.path.join(".")
   );
 
   if (nextSiblingItem) {
@@ -131,9 +161,9 @@ export function increaseTreeItem(items: Array<{ path: Array<number|string> }>, i
 
   // also needs to update it descendants path
   const descendants = findDescendants(items, itemIndex);
-  descendants.forEach((descendantItem) => {
+  descendants.forEach(descendantItem => {
     updateFn[items.indexOf(descendantItem)] = {
-      path: { $splice: [[0, descendantItem.path.indexOf(id), ...newPath]] },
+      path: { $splice: [[0, descendantItem.path.indexOf(id), ...newPath]] }
     };
   });
   return updateFn;
@@ -145,15 +175,19 @@ export function increaseTreeItem(items: Array<{ path: Array<number|string> }>, i
  * @param {Number} itemIndex The position of the item to decrease
  * @return {null|Object}
  */
-export function decreaseTreeItem(items: Array<{ path: Array<number|string> }>, itemIndex: number): Object|null {
+export function decreaseTreeItem(
+  items: Array<{ path: Array<number | string> }>,
+  itemIndex: number
+): Object | null {
   const updateFn = {};
   const item = items[itemIndex];
   const { id } = item;
 
   // Can't decrease if it don't have prev sibling
   const prevSiblingItem = items
-    .filter((siblingItem, index) =>
-      index < itemIndex && siblingItem.path.join('.') === item.path.join('.'),
+    .filter(
+      (siblingItem, index) =>
+        index < itemIndex && siblingItem.path.join(".") === item.path.join(".")
     )
     .pop();
 
@@ -168,9 +202,9 @@ export function decreaseTreeItem(items: Array<{ path: Array<number|string> }>, i
 
   // also needs to update it descendants path
   const descendants = findDescendants(items, itemIndex);
-  descendants.forEach((descendantItem) => {
+  descendants.forEach(descendantItem => {
     updateFn[items.indexOf(descendantItem)] = {
-      path: { $splice: [[0, descendantItem.path.indexOf(id), ...newPath]] },
+      path: { $splice: [[0, descendantItem.path.indexOf(id), ...newPath]] }
     };
   });
   return updateFn;
@@ -184,8 +218,10 @@ export function decreaseTreeItem(items: Array<{ path: Array<number|string> }>, i
  * @return {{updateFn: {}, newIndex: number}}
  */
 export function moveTreeItem(
-  items: Array<{ path: Array<number|string> }>, sourceIndex: number, targetIndex: number,
-): Object|null {
+  items: Array<{ path: Array<number | string> }>,
+  sourceIndex: number,
+  targetIndex: number
+): Object | null {
   let sourceItem = items[sourceIndex];
   const targetItem = items[targetIndex];
   const { id: dragId } = sourceItem;
@@ -202,10 +238,10 @@ export function moveTreeItem(
     update(descendantItem, {
       path: {
         $set: update(descendantItem.path, {
-          $splice: [[0, descendantItem.path.indexOf(dragId), ...newPath]],
-        }),
-      },
-    }),
+          $splice: [[0, descendantItem.path.indexOf(dragId), ...newPath]]
+        })
+      }
+    })
   );
 
   let newIndex = targetIndex;
@@ -215,16 +251,17 @@ export function moveTreeItem(
       // remove it and descendants from the list
       [sourceIndex, 1 + descendants.length],
       // insert drag item and it descendants to the new position
-      [targetIndex, 0, sourceItem, ...descendants],
+      [targetIndex, 0, sourceItem, ...descendants]
     ];
-  } else { // move down
+  } else {
+    // move down
     const hoverDescendants = findDescendants(items, targetIndex);
-    newIndex = (targetIndex + hoverDescendants.length) - descendants.length;
+    newIndex = targetIndex + hoverDescendants.length - descendants.length;
     updateFn.$splice = [
       // remove it and descendants from the list
       [sourceIndex, 1 + descendants.length],
       // insert drag item and it descendants to the new position
-      [newIndex, 0, sourceItem, ...descendants],
+      [newIndex, 0, sourceItem, ...descendants]
     ];
   }
 
@@ -237,7 +274,10 @@ export function moveTreeItem(
  * @param {Object} itemData The item data
  * @return {Array}
  */
-export function add(items: Array<{ path: Array<number|string> }>, itemData: { id: number|string }): Array {
+export function add(
+  items: Array<{ path: Array<number | string> }>,
+  itemData: { id: number | string }
+): Array {
   const item = { ...itemData, path: [] };
   return update(items, { $push: [item] });
 }
@@ -249,14 +289,19 @@ export function add(items: Array<{ path: Array<number|string> }>, itemData: { id
  * @param {Object} itemData The item data
  * @return {Array}
  */
-export function insert(items: Array<{ path: Array<number|string> }>,
-  targetIndex: number, itemData: { id: number|string }): Object {
+export function insert(
+  items: Array<{ path: Array<number | string> }>,
+  targetIndex: number,
+  itemData: { id: number | string }
+): Object {
   const currentItemAtIndex = items[targetIndex];
   const currentItemDescendants = findDescendants(items, targetIndex);
   const path = [...currentItemAtIndex.path];
   const newItem = { ...itemData, path };
 
-  return update(items, { $splice: [[targetIndex + currentItemDescendants.length + 1, 0, newItem]] });
+  return update(items, {
+    $splice: [[targetIndex + currentItemDescendants.length + 1, 0, newItem]]
+  });
 }
 
 /**
@@ -265,7 +310,10 @@ export function insert(items: Array<{ path: Array<number|string> }>,
  * @param {Number} index The item index
  * @return {Array}
  */
-export function remove(items: Array<{ path: Array<number|string> }>, index: number): Array {
+export function remove(
+  items: Array<{ path: Array<number | string> }>,
+  index: number
+): Array {
   const descendants = findDescendants(items, index);
 
   return update(items, { $splice: [[index, 1 + descendants.length]] });

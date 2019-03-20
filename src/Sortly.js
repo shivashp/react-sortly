@@ -1,24 +1,33 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import update from 'immutability-helper';
-import { DropTarget } from 'react-dnd';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import update from "immutability-helper";
+import { DropTarget } from "react-dnd";
 
-import { decreaseTreeItem, increaseTreeItem, moveTreeItem, findDescendants } from './utils';
-import Item from './Item';
+import {
+  decreaseTreeItem,
+  increaseTreeItem,
+  moveTreeItem,
+  findDescendants,
+  findLevelLength
+} from "./utils";
+import Item from "./Item";
 
-const DEFAULT_TYPE = 'REACT_SORTLY';
+const DEFAULT_TYPE = "REACT_SORTLY";
 let reduceOffset = 0;
 const noop = () => {};
 class Sortly extends Component {
   static propTypes = {
     type: PropTypes.string.isRequired,
     component: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
-    items: PropTypes.arrayOf(PropTypes.shape({
-      path: PropTypes.array.isRequired,
-    })).isRequired,
+    items: PropTypes.arrayOf(
+      PropTypes.shape({
+        path: PropTypes.array.isRequired
+      })
+    ).isRequired,
     itemRenderer: PropTypes.func.isRequired,
     threshold: PropTypes.number,
     maxDepth: PropTypes.number,
+    maxRoots: PropTypes.number,
     cancelOnDragOutside: PropTypes.bool,
     cancelOnDropOutside: PropTypes.bool,
     onMove: PropTypes.func,
@@ -26,26 +35,27 @@ class Sortly extends Component {
     onDragEnd: PropTypes.func,
     onDrop: PropTypes.func,
     monitor: PropTypes.shape({
-      getItem: PropTypes.func.isRequired,
+      getItem: PropTypes.func.isRequired
     }).isRequired,
     isOver: PropTypes.bool.isRequired,
     connectDropTarget: PropTypes.func.isRequired,
-    onChange: PropTypes.func.isRequired,
-  }
+    onChange: PropTypes.func.isRequired
+  };
 
   static defaultProps = {
-    component: 'div',
+    component: "div",
     threshold: 20,
     maxDepth: Infinity,
+    maxRoots: Infinity,
     cancelOnDragOutside: false,
     cancelOnDropOutside: false,
     onMove: null,
     onDragStart: noop,
     onDragEnd: noop,
-    onDrop: noop,
-  }
+    onDrop: noop
+  };
 
-  state = { items: this.props.items, draggingDescendants: {} }
+  state = { items: this.props.items, draggingDescendants: {} };
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.items !== this.props.items) {
@@ -77,7 +87,7 @@ class Sortly extends Component {
 
       this.setState({ draggingDescendants });
     }
-  }
+  };
 
   handleDragEnd = (dragIndex: number, didDrop: boolean) => {
     const { cancelOnDropOutside, onDragEnd, monitor } = this.props;
@@ -97,12 +107,22 @@ class Sortly extends Component {
     } else {
       this.change();
     }
-  }
+  };
 
-  handleMove = (dragIndex: number, hoverIndex: number, offsetX: number): number|null => {
+  handleMove = (
+    dragIndex: number,
+    hoverIndex: number,
+    offsetX: number
+  ): number | null => {
     const { items } = this.state;
+    const { maxRoots } = this.props;
     let updateFn;
     let newIndex;
+
+    // Check if maxRoots achieved
+    if (maxRoots === findLevelLength(items)) {
+      return null;
+    }
 
     if (dragIndex === hoverIndex) {
       const { threshold, maxDepth } = this.props;
@@ -117,8 +137,10 @@ class Sortly extends Component {
       if (offsetX > 0) {
         // maxDepth check
         if (
-          maxDepth < Infinity
-          && [items[dragIndex], ...findDescendants(items, dragIndex)].some(({ path }) => path.length >= maxDepth)
+          maxDepth < Infinity &&
+          [items[dragIndex], ...findDescendants(items, dragIndex)].some(
+            ({ path }) => path.length >= maxDepth
+          )
         ) {
           return null;
         }
@@ -128,7 +150,8 @@ class Sortly extends Component {
           return null;
         }
         reduceOffset -= threshold;
-      } else { // Move to the left, meaning increase horizontal level
+      } else {
+        // Move to the left, meaning increase horizontal level
         updateFn = increaseTreeItem(items, dragIndex);
         if (!updateFn) {
           return null;
@@ -144,7 +167,7 @@ class Sortly extends Component {
     }
 
     const newState = update(this.state, {
-      items: updateFn,
+      items: updateFn
     });
 
     if (this.props.onMove) {
@@ -162,11 +185,9 @@ class Sortly extends Component {
     this.setState(newState);
 
     return newIndex;
-  }
+  };
 
-  handleEnter = () => {
-
-  }
+  handleEnter = () => {};
 
   handleLeave = () => {
     const { cancelOnDragOutside, monitor } = this.props;
@@ -176,18 +197,23 @@ class Sortly extends Component {
       dragData.index = dragData.originalIndex;
       this.setState({ items: this.originalItems });
     }
-  }
+  };
 
   handleDrop = (dragIndex: number, dropIndex: number) => {
     this.props.onDrop(dragIndex, dropIndex);
-  }
+  };
 
   change = () => {
     this.props.onChange(this.state.items);
-  }
+  };
 
   render() {
-    const { type, component: Comp, itemRenderer, connectDropTarget } = this.props;
+    const {
+      type,
+      component: Comp,
+      itemRenderer,
+      connectDropTarget
+    } = this.props;
     const { items, draggingDescendants } = this.state;
 
     return connectDropTarget(
@@ -206,24 +232,22 @@ class Sortly extends Component {
             onDrop={this.handleDrop}
           />
         ))}
-      </Comp>,
+      </Comp>
     );
   }
 }
 
-const spec = {
-
-};
+const spec = {};
 
 const collect = (connect, monitor) => ({
   monitor,
   isOver: monitor.isOver(),
-  connectDropTarget: connect.dropTarget(),
+  connectDropTarget: connect.dropTarget()
 });
 
 const WithDropTarget = DropTarget(props => props.type, spec, collect)(Sortly);
 WithDropTarget.defaultProps = {
-  type: DEFAULT_TYPE,
+  type: DEFAULT_TYPE
 };
 
 export default WithDropTarget;
